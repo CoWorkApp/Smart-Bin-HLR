@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -21,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { QRScanModal } from "@/components/QRScanModal";
 import { EmptyState } from "@/components/EmptyState";
+import { PhotoSourceSheet } from "@/components/PhotoSourceSheet";
 import { uploadPhoto, resolvePhotoUri } from "@/lib/photoUpload";
 
 export default function EditItem() {
@@ -38,6 +38,7 @@ export default function EditItem() {
   const [qrCode, setQrCode] = useState(item?.qrCode ?? "");
   const [showBinPicker, setShowBinPicker] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
 
   if (!item) {
     return (
@@ -52,20 +53,6 @@ export default function EditItem() {
   const binPath = selectedBin?.locationId
     ? getLocationPath(selectedBin.locationId).map((l) => l.name).join(" › ")
     : null;
-
-  async function pickPhoto() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhoto(result.assets[0].uri);
-    }
-  }
 
   async function handleSave() {
     if (!name.trim()) return;
@@ -133,7 +120,7 @@ export default function EditItem() {
       <Text style={[styles.label, { color: colors.foreground }]}>Photo (optional)</Text>
       <TouchableOpacity
         style={[styles.photoBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-        onPress={pickPhoto}
+        onPress={() => setShowPhotoSheet(true)}
         activeOpacity={0.7}
       >
         {photo ? (
@@ -232,6 +219,12 @@ export default function EditItem() {
           </View>
         </View>
       </Modal>
+
+      <PhotoSourceSheet
+        visible={showPhotoSheet}
+        onClose={() => setShowPhotoSheet(false)}
+        onPhoto={(uri) => setPhoto(uri)}
+      />
 
       <QRScanModal visible={showScanner} onScan={(code) => setQrCode(code)} onClose={() => setShowScanner(false)} />
     </ScrollView>

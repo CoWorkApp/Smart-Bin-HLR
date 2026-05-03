@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -21,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useSubscription } from "@/lib/revenuecat";
 import { QRScanModal } from "@/components/QRScanModal";
+import { PhotoSourceSheet } from "@/components/PhotoSourceSheet";
 import { uploadPhoto } from "@/lib/photoUpload";
 
 export default function AddItem() {
@@ -45,6 +45,7 @@ export default function AddItem() {
   );
   const [showBinPicker, setShowBinPicker] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
 
   const allBins = getGroupBins();
   const selectedBin = selectedBinId
@@ -53,20 +54,6 @@ export default function AddItem() {
   const binPath = selectedBin?.locationId
     ? getLocationPath(selectedBin.locationId).map((l) => l.name).join(" › ")
     : null;
-
-  async function pickPhoto() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhoto(result.assets[0].uri);
-    }
-  }
 
   async function handleSave() {
     if (!name.trim()) return;
@@ -180,7 +167,7 @@ export default function AddItem() {
           styles.photoBtn,
           { borderColor: colors.border, backgroundColor: colors.card },
         ]}
-        onPress={pickPhoto}
+        onPress={() => setShowPhotoSheet(true)}
         activeOpacity={0.7}
       >
         {photo ? (
@@ -391,6 +378,12 @@ export default function AddItem() {
           </View>
         </View>
       </Modal>
+
+      <PhotoSourceSheet
+        visible={showPhotoSheet}
+        onClose={() => setShowPhotoSheet(false)}
+        onPhoto={(uri) => setPhoto(uri)}
+      />
 
       {/* QR Scanner modal */}
       <QRScanModal
