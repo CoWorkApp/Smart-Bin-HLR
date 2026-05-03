@@ -1,53 +1,81 @@
-import { getApiBase, getAuthHeaders } from "./apiClient";
+import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system";
+import * as SecureStore from "expo-secure-store";
 
-/**
- * Upload a local photo URI to cloud object storage.
- * Returns the objectPath (e.g. "/objects/uploads/some-uuid") to store in the DB.
- */
-export async function uploadPhoto(localUri: string): Promise<string> {
-  const filename = localUri.split("/").pop() ?? "photo.jpg";
-  const contentType = filename.endsWith(".png") ? "image/png" : "image/jpeg";
+const AUTH_TOKEN_KEY = "auth_session_token";
 
-  const fileInfo = await fetch(localUri);
-  const blob = await fileInfo.blob();
-  const size = blob.size;
-
-  const headers = await getAuthHeaders();
-  const urlRes = await fetch(`${getApiBase()}/api/storage/uploads/request-url`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ name: filename, size, contentType }),
-  });
-  if (!urlRes.ok) {
-    throw new Error(`Failed to get upload URL: ${urlRes.status}`);
+function getApiBaseUrl(): string {
+  if (process.env.EXPO_PUBLIC_DOMAIN) {
+    return `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
   }
-  const { uploadURL, objectPath } = (await urlRes.json()) as {
-    uploadURL: string;
-    objectPath: string;
-  };
-
-  const uploadRes = await fetch(uploadURL, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-  if (!uploadRes.ok) {
-    throw new Error(`Failed to upload photo: ${uploadRes.status}`);
-  }
-
-  return objectPath;
+  return "";
 }
 
-/**
- * Convert a stored photo value to a displayable URI.
- * - Cloud path like "/objects/..." → full API URL
- * - Local file:// URI (legacy) → returned as-is
- * - undefined → undefined
- */
-export function resolvePhotoUri(photo: string | undefined): string | undefined {
-  if (!photo) return undefined;
-  if (photo.startsWith("/objects/")) {
-    return `${getApiBase()}/api/storage${photo}`;
+async function getAuthToken(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
   }
-  return photo;
+}
+
+async function uriToBase64(uri: string): Promise<{ base64: string; mimeType: string }> {
+  const mimeType = uri.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+
+  if (Platform.OS === "web") {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    return { base64, mimeType };
+  }
+
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return { base64, mimeType };
+}
+
+export async function uploadPhoto(uri: string): Promise<string> {
+  const { base64, mimeType } = await uriToBase64(uri);
+
+  const token = await getAuthToken();
+  const apiBase = getApiBaseUrl();
+
+  const res = await fetch(`${apiBase}/api/photos`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ data: base64, mimeType }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Photo upload failed: ${res.status} ${body}`);
+  }
+
+  const { id } = await res.json();
+  return `${apiBase}/api/photos/${id}`;
+}
+
+export function resolvePhotoUri(photo: string | undefined | null): string | undefined {
+  if (!photo) return undefined;
+  if (
+    photo.startsWith("http://") ||
+    photo.startsWith("https://") ||
+    photo.startsWith("file://") ||
+    photo.startsWith("content://")
+  ) {
+    return photo;
+  }
+  return `${getApiBaseUrl()}${photo}`;
 }

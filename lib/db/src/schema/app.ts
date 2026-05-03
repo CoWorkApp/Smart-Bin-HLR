@@ -1,4 +1,4 @@
-import { pgTable, varchar, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -57,6 +57,18 @@ export const itemsTable = pgTable("items", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
+
+// ── Photos ───────────────────────────────────────────────────────────────────
+
+export const photosTable = pgTable("photos", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  data: text("data").notNull(),
+  mimeType: varchar("mime_type", { length: 50 }).notNull().default("image/jpeg"),
+  sizeBytes: integer("size_bytes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Photo = typeof photosTable.$inferSelect;
 
 // ── Coupons ───────────────────────────────────────────────────────────────────
 
