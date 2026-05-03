@@ -29,7 +29,7 @@ router.post("/photos", requireAuth, async (req: Request, res: Response) => {
   res.status(201).json({ id: photo.id });
 });
 
-router.get("/photos/:id", requireAuth, async (req: Request, res: Response) => {
+router.get("/photos/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   const [photo] = await db
     .select()

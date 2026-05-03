@@ -4,6 +4,7 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import type { Bin, Item, Location } from "@/context/AppContext";
+import { resolvePhotoUri } from "@/lib/photoUpload";
 
 interface Props {
   item: Item;
@@ -24,7 +25,7 @@ export function ItemCard({ item, bin, locationPath = [], showPath = true }: Prop
     >
       <View style={styles.row}>
         {item.photo ? (
-          <Image source={{ uri: item.photo }} style={[styles.photo, { borderRadius: 8 }]} />
+          <Image source={{ uri: resolvePhotoUri(item.photo) }} style={[styles.photo, { borderRadius: 8 }]} />
         ) : (
           <View style={[styles.iconWrap, { backgroundColor: colors.muted }]}>
             <Feather name="package" size={20} color={colors.primary} />
