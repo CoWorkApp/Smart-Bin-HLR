@@ -13,6 +13,8 @@ function requireAuth(req: Request, res: Response, next: () => void) {
   next();
 }
 
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+
 router.post("/photos", requireAuth, async (req: Request, res: Response) => {
   const { data, mimeType } = req.body as { data?: string; mimeType?: string };
   if (!data) {
@@ -21,6 +23,13 @@ router.post("/photos", requireAuth, async (req: Request, res: Response) => {
   }
 
   const sizeBytes = Math.round((data.length * 3) / 4);
+  if (sizeBytes > MAX_PHOTO_BYTES) {
+    res.status(413).json({
+      error: `Photo too large: ${(sizeBytes / 1024 / 1024).toFixed(1)} MB. Maximum is 2 MB.`,
+    });
+    return;
+  }
+
   const [photo] = await db
     .insert(photosTable)
     .values({ data, mimeType: mimeType ?? "image/jpeg", sizeBytes })
