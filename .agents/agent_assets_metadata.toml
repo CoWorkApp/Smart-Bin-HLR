@@ -11,3 +11,9 @@ id = "nj51TQdzNyU584EmqW3Ls"
 uri = "file://readmelocal.md"
 type = "text"
 title = "Local + Production Build Guide — readmelocal.md"
+
+[[outputs]]
+id = "IilEoHTCS76Gwj05Msgma"
+uri = "file://readmesetup.md"
+type = "text"
+title = "Smart Bin Setup Guide"
