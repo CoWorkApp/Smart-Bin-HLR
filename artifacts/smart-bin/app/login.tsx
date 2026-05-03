@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth";
 import { useColors } from "@/hooks/useColors";
 
 export default function LoginScreen() {
-  const { login, loginWithGoogle, isLoading, isInIframe } = useAuth();
+  const { login, loginWithGoogle, isLoading, isInIframe, isReady } = useAuth();
   const colors = useColors();
 
   const openInNewTab = () => {
@@ -83,10 +83,10 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={[styles.loginBtn, { backgroundColor: colors.card }]}
                 onPress={login}
-                disabled={isLoading}
+                disabled={isLoading || !isReady}
                 activeOpacity={0.85}
               >
-                {isLoading ? (
+                {isLoading || !isReady ? (
                   <ActivityIndicator color={colors.primary} />
                 ) : (
                   <Text
@@ -118,7 +118,7 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={styles.googleBtn}
                 onPress={loginWithGoogle}
-                disabled={isLoading}
+                disabled={isLoading || !isReady}
                 activeOpacity={0.85}
               >
                 <GoogleLogo />

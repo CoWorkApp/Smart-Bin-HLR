@@ -38,6 +38,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   isInIframe: boolean;
+  isReady: boolean;
   login: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -48,6 +49,7 @@ const AuthContext = createContext<AuthContextValue>({
   isLoading: true,
   isAuthenticated: false,
   isInIframe: false,
+  isReady: false,
   login: async () => {},
   loginWithGoogle: async () => {},
   logout: async () => {},
@@ -394,12 +396,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       return;
     }
+    if (!request) {
+      return;
+    }
     try {
       await promptAsync();
     } catch (err) {
       console.error("Login error:", err);
     }
-  }, [promptAsync]);
+  }, [promptAsync, request]);
 
   const loginWithGoogle = useCallback(async () => {
     if (!getGoogleClientId() || getGoogleClientId() === "YOUR_GOOGLE_CLIENT_ID_HERE") {
@@ -417,12 +422,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       return;
     }
+    if (!googleRequest) {
+      return;
+    }
     try {
       await promptGoogleAsync();
     } catch (err) {
       console.error("Google login error:", err);
     }
-  }, [promptGoogleAsync]);
+  }, [promptGoogleAsync, googleRequest]);
 
   const logout = useCallback(async () => {
     try {
@@ -441,6 +449,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const isReady = Platform.OS === "web" ? true : request !== null;
+
   return (
     <AuthContext.Provider
       value={{
@@ -448,6 +458,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         isInIframe,
+        isReady,
         login,
         loginWithGoogle,
         logout,
