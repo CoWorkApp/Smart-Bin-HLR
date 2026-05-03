@@ -1,0 +1,13 @@
+uploads = []
+
+[[generated]]
+id = "n3Np9OoUjsOYUFyBSC_9J"
+uri = "file://artifacts/smart-bin/assets/images/icon.png"
+type = "image"
+title = "smart bin app icon"
+
+[[outputs]]
+id = "nj51TQdzNyU584EmqW3Ls"
+uri = "file://readmelocal.md"
+type = "text"
+title = "Local + Production Build Guide — readmelocal.md"

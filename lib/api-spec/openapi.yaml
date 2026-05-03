@@ -1,0 +1,981 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: groups
+    description: Group management
+  - name: locations
+    description: Location management
+  - name: bins
+    description: Bin management
+  - name: items
+    description: Item management
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      operationId: getCurrentAuthUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current auth state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCurrentAuthUserResponse"
+
+  /mobile-auth/token-exchange:
+    post:
+      operationId: exchangeMobileAuthorizationCode
+      tags: [auth]
+      summary: Exchange PKCE authorization code for session token (mobile)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeMobileAuthorizationCodeBody"
+      responses:
+        "200":
+          description: Session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeMobileAuthorizationCodeResponse"
+
+  /mobile-auth/logout:
+    post:
+      operationId: logoutMobileSession
+      tags: [auth]
+      summary: Logout mobile session
+      responses:
+        "200":
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutMobileSessionResponse"
+
+  /groups:
+    get:
+      operationId: listGroups
+      tags: [groups]
+      summary: List groups for the current user
+      responses:
+        "200":
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListGroupsResponse"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createGroup
+      tags: [groups]
+      summary: Create a new group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupBody"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupResponse"
+        "401":
+          description: Unauthorized
+
+  /groups/{groupId}:
+    get:
+      operationId: getGroup
+      tags: [groups]
+      summary: Get a group by ID
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    put:
+      operationId: updateGroup
+      tags: [groups]
+      summary: Update a group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupBody"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteGroup
+      tags: [groups]
+      summary: Delete a group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /groups/{groupId}/locations:
+    get:
+      operationId: listLocations
+      tags: [locations]
+      summary: List locations in a group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of locations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListLocationsResponse"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createLocation
+      tags: [locations]
+      summary: Create a location
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLocationBody"
+      responses:
+        "201":
+          description: Created location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationResponse"
+        "401":
+          description: Unauthorized
+
+  /groups/{groupId}/locations/{locationId}:
+    put:
+      operationId: updateLocation
+      tags: [locations]
+      summary: Update a location
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLocationBody"
+      responses:
+        "200":
+          description: Updated location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteLocation
+      tags: [locations]
+      summary: Delete a location
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /groups/{groupId}/bins:
+    get:
+      operationId: listBins
+      tags: [bins]
+      summary: List bins in a group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bins
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListBinsResponse"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createBin
+      tags: [bins]
+      summary: Create a bin
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBinBody"
+      responses:
+        "201":
+          description: Created bin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BinResponse"
+        "401":
+          description: Unauthorized
+
+  /groups/{groupId}/bins/{binId}:
+    put:
+      operationId: updateBin
+      tags: [bins]
+      summary: Update a bin
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: binId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBinBody"
+      responses:
+        "200":
+          description: Updated bin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BinResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteBin
+      tags: [bins]
+      summary: Delete a bin
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: binId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /groups/{groupId}/items:
+    get:
+      operationId: listItems
+      tags: [items]
+      summary: List items in a group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search query
+        - name: binId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by bin
+      responses:
+        "200":
+          description: List of items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItemsResponse"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createItem
+      tags: [items]
+      summary: Create an item
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateItemBody"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Item limit reached for plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /groups/{groupId}/items/{itemId}:
+    put:
+      operationId: updateItem
+      tags: [items]
+      summary: Update an item
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateItemBody"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteItem
+      tags: [items]
+      summary: Delete an item
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+
+  /qr/{qrCode}:
+    get:
+      operationId: lookupQrCode
+      tags: [items]
+      summary: Look up what a QR code points to
+      parameters:
+        - name: qrCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: QR lookup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrLookupResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          nullable: true
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        profileImageUrl:
+          type: string
+          nullable: true
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - profileImageUrl
+
+    GetCurrentAuthUserResponse:
+      type: object
+      properties:
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/AuthUser"
+            - type: "null"
+      required:
+        - user
+
+    ExchangeMobileAuthorizationCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+        code_verifier:
+          type: string
+        redirect_uri:
+          type: string
+        state:
+          type: string
+        nonce:
+          type: string
+          nullable: true
+      required:
+        - code
+        - code_verifier
+        - redirect_uri
+        - state
+
+    ExchangeMobileAuthorizationCodeResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+        - token
+
+    LogoutMobileSessionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          nullable: true
+      required:
+        - error
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - type
+        - role
+        - createdAt
+        - updatedAt
+
+    GroupResponse:
+      type: object
+      properties:
+        group:
+          $ref: "#/components/schemas/Group"
+      required:
+        - group
+
+    ListGroupsResponse:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/Group"
+      required:
+        - groups
+
+    CreateGroupBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [family, business]
+      required:
+        - name
+        - type
+
+    UpdateGroupBody:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [family, business]
+
+    Location:
+      type: object
+      properties:
+        id:
+          type: string
+        groupId:
+          type: string
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+        qrCode:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - groupId
+        - name
+        - parentId
+        - createdAt
+        - updatedAt
+
+    LocationResponse:
+      type: object
+      properties:
+        location:
+          $ref: "#/components/schemas/Location"
+      required:
+        - location
+
+    ListLocationsResponse:
+      type: object
+      properties:
+        locations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Location"
+      required:
+        - locations
+
+    CreateLocationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+      required:
+        - name
+
+    UpdateLocationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+        qrCode:
+          type: string
+          nullable: true
+
+    Bin:
+      type: object
+      properties:
+        id:
+          type: string
+        groupId:
+          type: string
+        locationId:
+          type: string
+        name:
+          type: string
+        qrCode:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - groupId
+        - locationId
+        - name
+        - createdAt
+        - updatedAt
+
+    BinResponse:
+      type: object
+      properties:
+        bin:
+          $ref: "#/components/schemas/Bin"
+      required:
+        - bin
+
+    ListBinsResponse:
+      type: object
+      properties:
+        bins:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bin"
+      required:
+        - bins
+
+    CreateBinBody:
+      type: object
+      properties:
+        name:
+          type: string
+        locationId:
+          type: string
+        qrCode:
+          type: string
+          nullable: true
+      required:
+        - name
+        - locationId
+
+    UpdateBinBody:
+      type: object
+      properties:
+        name:
+          type: string
+        locationId:
+          type: string
+        qrCode:
+          type: string
+          nullable: true
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+        groupId:
+          type: string
+        binId:
+          type: string
+        name:
+          type: string
+        photo:
+          type: string
+          nullable: true
+        qrCode:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - groupId
+        - binId
+        - name
+        - createdAt
+        - updatedAt
+
+    ItemResponse:
+      type: object
+      properties:
+        item:
+          $ref: "#/components/schemas/Item"
+      required:
+        - item
+
+    ListItemsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+      required:
+        - items
+
+    CreateItemBody:
+      type: object
+      properties:
+        name:
+          type: string
+        binId:
+          type: string
+        photo:
+          type: string
+          nullable: true
+        qrCode:
+          type: string
+          nullable: true
+      required:
+        - name
+        - binId
+
+    UpdateItemBody:
+      type: object
+      properties:
+        name:
+          type: string
+        binId:
+          type: string
+        photo:
+          type: string
+          nullable: true
+        qrCode:
+          type: string
+          nullable: true
+
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: number
+        contentType:
+          type: string
+      required:
+        - name
+        - size
+        - contentType
+
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          type: object
+          properties:
+            name:
+              type: string
+            size:
+              type: number
+            contentType:
+              type: string
+          required:
+            - name
+            - size
+            - contentType
+      required:
+        - uploadURL
+        - objectPath
+        - metadata
+
+    QrLookupResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bin, location, item]
+        id:
+          type: string
+        groupId:
+          type: string
+      required:
+        - type
+        - id
+        - groupId

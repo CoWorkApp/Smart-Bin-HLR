@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Smart Bin – Find My Things"
+version = "1.0.0"
+id = "artifacts/smart-bin"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 19790
+
+[services.development]
+run = "pnpm --filter @workspace/smart-bin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/smart-bin", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/smart-bin", "run", "serve" ]
+
+[services.env]
+PORT = "19790"
+BASE_PATH = "/"
