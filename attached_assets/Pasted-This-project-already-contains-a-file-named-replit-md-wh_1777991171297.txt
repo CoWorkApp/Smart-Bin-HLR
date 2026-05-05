@@ -1,0 +1,68 @@
+This project already contains a file named `replit.md` which documents the current workspace and architecture.
+
+Your task is to READ AND FULLY UNDERSTAND `replit.md`, then GENERATE a new version of it that is optimized for long‑term AI agent usage and minimal token consumption.
+
+IMPORTANT GOALS:
+- Preserve all FACTUAL project knowledge from `replit.md`
+- Remove redundant, verbose, or Replit‑specific noise that does not help an AI reason about the project
+- Reorganize the content so a new AI agent can understand the project by reading ONLY this file
+- Treat the output as the **single source of truth** for future agents
+- Do NOT reference this conversation
+- Do NOT invent missing information
+- Explicitly mark uncertainties instead of guessing
+- Optimize for clarity and compactness (token efficiency matters)
+
+OUTPUT REQUIREMENTS:
+- Output a single Markdown file
+- File name must remain **`replit.md`** (overwrite‑ready)
+- Start directly with `# Project Context`
+- No extra commentary before or after
+
+The rewritten `replit.md` MUST use the following structure and headings:
+
+1. Project Overview  
+   - What the project is  
+   - Primary problem it solves  
+   - Target users  
+   - Current maturity (POC / MVP / production)
+
+2. Monorepo & Workspace Layout  
+   - Monorepo strategy  
+   - Key packages and their responsibilities  
+
+3. Tech Stack  
+   - Backend stack  
+   - Mobile/frontend stack  
+   - Database & ORM  
+   - Tooling & build system  
+
+4. Architecture & Data Flow  
+   - High‑level architecture  
+   - API ↔ mobile interaction  
+   - Auth flow  
+   - State management approach  
+
+5. Domain Model Summary  
+   - Core entities  
+   - Their relationships  
+   - Ownership / multi‑group behavior  
+
+6. Key Runtime Assumptions  
+   - Auth requirements  
+   - Environment variables that must exist  
+   - External services (RevenueCat, OIDC, etc.)
+
+7. Operational Commands  
+   - Commands that are safe and expected to run  
+   - Commands that modify schema or data  
+
+8. Constraints & Non‑Goals  
+   - Things an agent must NOT change  
+   - Fragile or intentional design choices  
+
+9. Agent Operating Instructions  
+   - How an AI agent should behave in this repo  
+   - When it may auto‑edit code vs ask first  
+   - Preference for minimal vs invasive changes  
+
+Now generate the rewritten, agent‑optimized `replit.md`.
