@@ -96,17 +96,22 @@ Database (PostgreSQL)
 ## 5. Domain Model
 
 ```
-users           (id, replitId, name, email, avatarUrl)
-sessions        (id, userId, expiresAt)
-groups          (id, name, ownerId)
+users           (id, email, firstName, lastName, profileImageUrl)
+groups          (id, name, type, inviteCode)
 group_members   (groupId, userId, role)
 locations       (id, groupId, parentId?, name, qrCode?)   ← hierarchical
 bins            (id, groupId, locationId?, name, qrCode?)
 items           (id, groupId, binId?, name, photo?, qrCode?, updatedAt)
-photos          (id, data TEXT base64, mimeType, sizeBytes, createdAt)
-coupons         (id, code, planId, durationDays, maxRedemptions)
-coupon_redemptions (userId, couponId, redeemedAt)
 ```
+
+**Group architecture**
+- One active group at a time in the app.
+- Groups own locations, bins, and items.
+- Groups also own users through `group_members`.
+- Roles are `admin` or `member`.
+- Admins can invite members with an invite code and remove members.
+- Users can belong to multiple groups and switch active group in Settings.
+- Search and QR lookup must always use the active group only.
 
 **Client generates UUIDs** and passes them as optional `id` to POST endpoints for instant optimistic UI.
 
