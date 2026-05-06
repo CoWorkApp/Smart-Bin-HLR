@@ -172,14 +172,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const activeGroupRef = useRef<string | null>(null);
   activeGroupRef.current = activeGroupId;
 
+  // Version counter — discard responses from stale concurrent loads
+  const loadVersion = useRef(0);
+
   // ── Cloud load ─────────────────────────────────────────────────────────────
 
   const loadGroupData = useCallback(async (groupId: string) => {
+    const version = ++loadVersion.current;
     const [{ locations: locs }, { bins: bs }, { items: its }] = await Promise.all([
       apiFetch<{ locations: Record<string, unknown>[] }>(`/groups/${groupId}/locations`),
       apiFetch<{ bins: Record<string, unknown>[] }>(`/groups/${groupId}/bins`),
       apiFetch<{ items: Record<string, unknown>[] }>(`/groups/${groupId}/items`),
     ]);
+    // Discard if a newer load has already started
+    if (loadVersion.current !== version) return;
     setLocations(locs.map(normalizeLocation));
     setBins(bs.map(normalizeBin));
     setItems(its.map(normalizeItem));
@@ -242,6 +248,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Active group ───────────────────────────────────────────────────────────
 
   const setActiveGroupId = useCallback((id: string) => {
+    // Clear stale data immediately so the old group's data never shows after switch
+    setLocations([]);
+    setBins([]);
+    setItems([]);
     setActiveGroupIdState(id);
     AsyncStorage.setItem(ACTIVE_GROUP_KEY, id);
   }, []);

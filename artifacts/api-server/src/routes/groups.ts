@@ -283,11 +283,11 @@ router.post("/groups/:groupId/bins", requireAuth, async (req: Request, res: Resp
   const { groupId } = p(req);
   const role = await getGroupRole(groupId, userId);
   if (!role) { res.status(404).json({ error: "Not found" }); return; }
-  const { id, name, locationId, qrCode } = req.body as { id?: string; name: string; locationId: string; qrCode?: string | null };
-  if (!name || !locationId) { res.status(400).json({ error: "name and locationId are required" }); return; }
+  const { id, name, locationId, qrCode } = req.body as { id?: string; name: string; locationId?: string | null; qrCode?: string | null };
+  if (!name) { res.status(400).json({ error: "name is required" }); return; }
   const [bin] = await db
     .insert(binsTable)
-    .values({ ...(id ? { id } : {}), groupId, locationId, name, qrCode: qrCode ?? null })
+    .values({ ...(id ? { id } : {}), groupId, locationId: locationId ?? null, name, qrCode: qrCode ?? null })
     .returning();
   res.status(201).json({ bin });
 });
@@ -347,9 +347,9 @@ router.post("/groups/:groupId/items", requireAuth, async (req: Request, res: Res
   if (!role) { res.status(404).json({ error: "Not found" }); return; }
 
   const { id, name, binId, photo, qrCode } = req.body as {
-    id?: string; name: string; binId: string; photo?: string | null; qrCode?: string | null;
+    id?: string; name: string; binId?: string | null; photo?: string | null; qrCode?: string | null;
   };
-  if (!name || !binId) { res.status(400).json({ error: "name and binId are required" }); return; }
+  if (!name) { res.status(400).json({ error: "name is required" }); return; }
 
   const [item] = await db
     .insert(itemsTable)

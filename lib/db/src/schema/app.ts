@@ -39,7 +39,7 @@ export const locationsTable = pgTable("locations", {
 export const binsTable = pgTable("bins", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   groupId: varchar("group_id", { length: 36 }).notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
-  locationId: varchar("location_id", { length: 36 }).notNull().references(() => locationsTable.id, { onDelete: "cascade" }),
+  locationId: varchar("location_id", { length: 36 }).references(() => locationsTable.id, { onDelete: "set null" }),
   name: varchar("name", { length: 255 }).notNull(),
   qrCode: varchar("qr_code", { length: 255 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -51,7 +51,7 @@ export const binsTable = pgTable("bins", {
 export const itemsTable = pgTable("items", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   groupId: varchar("group_id", { length: 36 }).notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
-  binId: varchar("bin_id", { length: 36 }).notNull().references(() => binsTable.id, { onDelete: "cascade" }),
+  binId: varchar("bin_id", { length: 36 }).references(() => binsTable.id, { onDelete: "set null" }),
   name: varchar("name", { length: 255 }).notNull(),
   photo: text("photo"),
   qrCode: varchar("qr_code", { length: 255 }),
