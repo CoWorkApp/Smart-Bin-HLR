@@ -9,6 +9,7 @@ export const groupsTable = pgTable("groups", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: varchar("name", { length: 255 }).notNull(),
   type: varchar("type", { length: 20 }).notNull().default("family"), // "family" | "business"
+  inviteCode: varchar("invite_code", { length: 12 }).unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

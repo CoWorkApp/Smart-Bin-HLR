@@ -1,21 +1,18 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, groupsTable, groupMembersTable, locationsTable, binsTable, itemsTable } from "@workspace/db";
+import { db, groupsTable, groupMembersTable, locationsTable, binsTable, itemsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import type { AuthUser } from "../lib/auth";
 
-// Type-safe param extraction (Express params are string | string[] without generic)
 function p(req: Request): Record<string, string> {
   return req.params as Record<string, string>;
 }
 
-// Type-safe user id extraction
 function uid(req: Request): string {
   return (req.user as AuthUser).id;
 }
 
 const router: IRouter = Router();
 
-// Middleware: ensure user is authenticated
 function requireAuth(req: Request, res: Response, next: () => void) {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
@@ -24,7 +21,6 @@ function requireAuth(req: Request, res: Response, next: () => void) {
   next();
 }
 
-// Check group membership and return role
 async function getGroupRole(groupId: string, userId: string) {
   const [member] = await db
     .select()
@@ -33,9 +29,13 @@ async function getGroupRole(groupId: string, userId: string) {
   return member?.role ?? null;
 }
 
+function genInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
 // ── Groups ────────────────────────────────────────────────────────────────────
 
-// GET /api/groups
 router.get("/groups", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const memberships = await db
@@ -59,7 +59,6 @@ router.get("/groups", requireAuth, async (req: Request, res: Response) => {
   res.json({ groups: groups.filter(Boolean) });
 });
 
-// POST /api/groups
 router.post("/groups", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { id, name, type } = req.body as { id?: string; name: string; type: string };
@@ -70,7 +69,7 @@ router.post("/groups", requireAuth, async (req: Request, res: Response) => {
 
   const [group] = await db
     .insert(groupsTable)
-    .values({ ...(id ? { id } : {}), name, type })
+    .values({ ...(id ? { id } : {}), name, type, inviteCode: genInviteCode() })
     .returning();
 
   await db.insert(groupMembersTable).values({ groupId: group.id, userId, role: "admin" });
@@ -78,7 +77,35 @@ router.post("/groups", requireAuth, async (req: Request, res: Response) => {
   res.status(201).json({ group: { ...group, role: "admin" } });
 });
 
-// GET /api/groups/:groupId
+// POST /api/groups/join — must be before /:groupId routes
+router.post("/groups/join", requireAuth, async (req: Request, res: Response) => {
+  const userId = uid(req);
+  const { inviteCode } = req.body as { inviteCode?: string };
+  if (!inviteCode) {
+    res.status(400).json({ error: "inviteCode is required" });
+    return;
+  }
+
+  const [group] = await db
+    .select()
+    .from(groupsTable)
+    .where(eq(groupsTable.inviteCode, inviteCode.toUpperCase().trim()));
+
+  if (!group) {
+    res.status(404).json({ error: "Invalid invite code" });
+    return;
+  }
+
+  const existingRole = await getGroupRole(group.id, userId);
+  if (existingRole) {
+    res.json({ group: { ...group, role: existingRole } });
+    return;
+  }
+
+  await db.insert(groupMembersTable).values({ groupId: group.id, userId, role: "member" });
+  res.status(201).json({ group: { ...group, role: "member" } });
+});
+
 router.get("/groups/:groupId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -89,7 +116,6 @@ router.get("/groups/:groupId", requireAuth, async (req: Request, res: Response) 
   res.json({ group: { ...group, role } });
 });
 
-// PUT /api/groups/:groupId
 router.put("/groups/:groupId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -106,7 +132,6 @@ router.put("/groups/:groupId", requireAuth, async (req: Request, res: Response) 
   res.json({ group: { ...updated, role } });
 });
 
-// DELETE /api/groups/:groupId
 router.delete("/groups/:groupId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -117,9 +142,80 @@ router.delete("/groups/:groupId", requireAuth, async (req: Request, res: Respons
   res.status(204).send();
 });
 
+// ── Group Members ─────────────────────────────────────────────────────────────
+
+router.get("/groups/:groupId/members", requireAuth, async (req: Request, res: Response) => {
+  const userId = uid(req);
+  const { groupId } = p(req);
+  const role = await getGroupRole(groupId, userId);
+  if (!role) { res.status(404).json({ error: "Not found" }); return; }
+
+  const members = await db
+    .select({
+      userId: groupMembersTable.userId,
+      groupId: groupMembersTable.groupId,
+      role: groupMembersTable.role,
+      createdAt: groupMembersTable.createdAt,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+      email: usersTable.email,
+      profileImageUrl: usersTable.profileImageUrl,
+    })
+    .from(groupMembersTable)
+    .innerJoin(usersTable, eq(groupMembersTable.userId, usersTable.id))
+    .where(eq(groupMembersTable.groupId, groupId));
+
+  res.json({ members });
+});
+
+router.delete("/groups/:groupId/members/:memberId", requireAuth, async (req: Request, res: Response) => {
+  const userId = uid(req);
+  const { groupId, memberId } = p(req);
+  const role = await getGroupRole(groupId, userId);
+  if (!role) { res.status(404).json({ error: "Not found" }); return; }
+  if (role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
+  if (memberId === userId) { res.status(400).json({ error: "Cannot remove yourself" }); return; }
+
+  await db
+    .delete(groupMembersTable)
+    .where(and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, memberId)));
+
+  res.status(204).send();
+});
+
+// ── Invite ────────────────────────────────────────────────────────────────────
+
+router.get("/groups/:groupId/invite", requireAuth, async (req: Request, res: Response) => {
+  const userId = uid(req);
+  const { groupId } = p(req);
+  const role = await getGroupRole(groupId, userId);
+  if (!role) { res.status(404).json({ error: "Not found" }); return; }
+  if (role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
+
+  let [group] = await db.select().from(groupsTable).where(eq(groupsTable.id, groupId));
+  if (!group.inviteCode) {
+    const code = genInviteCode();
+    [group] = await db.update(groupsTable).set({ inviteCode: code }).where(eq(groupsTable.id, groupId)).returning();
+  }
+
+  res.json({ inviteCode: group.inviteCode });
+});
+
+router.post("/groups/:groupId/invite/regenerate", requireAuth, async (req: Request, res: Response) => {
+  const userId = uid(req);
+  const { groupId } = p(req);
+  const role = await getGroupRole(groupId, userId);
+  if (!role) { res.status(404).json({ error: "Not found" }); return; }
+  if (role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
+
+  const code = genInviteCode();
+  await db.update(groupsTable).set({ inviteCode: code }).where(eq(groupsTable.id, groupId));
+
+  res.json({ inviteCode: code });
+});
+
 // ── Locations ────────────────────────────────────────────────────────────────
 
-// GET /api/groups/:groupId/locations
 router.get("/groups/:groupId/locations", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -129,7 +225,6 @@ router.get("/groups/:groupId/locations", requireAuth, async (req: Request, res: 
   res.json({ locations });
 });
 
-// POST /api/groups/:groupId/locations
 router.post("/groups/:groupId/locations", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -144,7 +239,6 @@ router.post("/groups/:groupId/locations", requireAuth, async (req: Request, res:
   res.status(201).json({ location });
 });
 
-// PUT /api/groups/:groupId/locations/:locationId
 router.put("/groups/:groupId/locations/:locationId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId, locationId } = p(req);
@@ -164,7 +258,6 @@ router.put("/groups/:groupId/locations/:locationId", requireAuth, async (req: Re
   res.json({ location: updated });
 });
 
-// DELETE /api/groups/:groupId/locations/:locationId
 router.delete("/groups/:groupId/locations/:locationId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId, locationId } = p(req);
@@ -176,7 +269,6 @@ router.delete("/groups/:groupId/locations/:locationId", requireAuth, async (req:
 
 // ── Bins ─────────────────────────────────────────────────────────────────────
 
-// GET /api/groups/:groupId/bins
 router.get("/groups/:groupId/bins", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -186,7 +278,6 @@ router.get("/groups/:groupId/bins", requireAuth, async (req: Request, res: Respo
   res.json({ bins });
 });
 
-// POST /api/groups/:groupId/bins
 router.post("/groups/:groupId/bins", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -201,7 +292,6 @@ router.post("/groups/:groupId/bins", requireAuth, async (req: Request, res: Resp
   res.status(201).json({ bin });
 });
 
-// PUT /api/groups/:groupId/bins/:binId
 router.put("/groups/:groupId/bins/:binId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId, binId } = p(req);
@@ -221,7 +311,6 @@ router.put("/groups/:groupId/bins/:binId", requireAuth, async (req: Request, res
   res.json({ bin: updated });
 });
 
-// DELETE /api/groups/:groupId/bins/:binId
 router.delete("/groups/:groupId/bins/:binId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId, binId } = p(req);
@@ -233,7 +322,6 @@ router.delete("/groups/:groupId/bins/:binId", requireAuth, async (req: Request, 
 
 // ── Items ─────────────────────────────────────────────────────────────────────
 
-// GET /api/groups/:groupId/items
 router.get("/groups/:groupId/items", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -252,7 +340,6 @@ router.get("/groups/:groupId/items", requireAuth, async (req: Request, res: Resp
   res.json({ items: rows });
 });
 
-// POST /api/groups/:groupId/items
 router.post("/groups/:groupId/items", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId } = p(req);
@@ -271,7 +358,6 @@ router.post("/groups/:groupId/items", requireAuth, async (req: Request, res: Res
   res.status(201).json({ item });
 });
 
-// PUT /api/groups/:groupId/items/:itemId
 router.put("/groups/:groupId/items/:itemId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId, itemId } = p(req);
@@ -294,7 +380,6 @@ router.put("/groups/:groupId/items/:itemId", requireAuth, async (req: Request, r
   res.json({ item: updated });
 });
 
-// DELETE /api/groups/:groupId/items/:itemId
 router.delete("/groups/:groupId/items/:itemId", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { groupId, itemId } = p(req);
@@ -306,7 +391,6 @@ router.delete("/groups/:groupId/items/:itemId", requireAuth, async (req: Request
 
 // ── QR Lookup ─────────────────────────────────────────────────────────────────
 
-// GET /api/qr/:qrCode
 router.get("/qr/:qrCode", requireAuth, async (req: Request, res: Response) => {
   const userId = uid(req);
   const { qrCode } = p(req);

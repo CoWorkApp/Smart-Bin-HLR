@@ -48,6 +48,17 @@ export interface SearchResult {
   locationPath: Location[];
 }
 
+export interface GroupMember {
+  userId: string;
+  groupId: string;
+  role: "admin" | "member";
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  profileImageUrl?: string | null;
+  createdAt: string;
+}
+
 interface AppContextValue {
   groups: Group[];
   activeGroupId: string | null;
@@ -56,6 +67,7 @@ interface AppContextValue {
   addGroup: (name: string, type: Group["type"]) => Group;
   updateGroup: (id: string, updates: Partial<Group>) => void;
   deleteGroup: (id: string) => void;
+  joinGroup: (inviteCode: string) => Promise<Group>;
 
   locations: Location[];
   getGroupLocations: (groupId?: string) => Location[];
@@ -261,6 +273,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBins((prev) => prev.filter((b) => b.groupId !== id));
     setItems((prev) => prev.filter((i) => i.groupId !== id));
     apiFetch(`/groups/${id}`, { method: "DELETE" }).catch(console.warn);
+  }, []);
+
+  const joinGroup = useCallback(async (inviteCode: string): Promise<Group> => {
+    const { group: joined } = await apiFetch<{ group: Record<string, unknown> }>("/groups/join", {
+      method: "POST",
+      body: JSON.stringify({ inviteCode }),
+    });
+    const g = normalizeGroup(joined);
+    setGroups((prev) => {
+      if (prev.find((x) => x.id === g.id)) return prev;
+      return [...prev, g];
+    });
+    return g;
   }, []);
 
   // ── Locations ──────────────────────────────────────────────────────────────
@@ -573,6 +598,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addGroup,
         updateGroup,
         deleteGroup,
+        joinGroup,
         locations,
         getGroupLocations,
         getRootLocations,
